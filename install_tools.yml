@@ -1,0 +1,46 @@
+---
+#Assumptions: vSphere creds in vault file vimcreds.yml at the same location as the sphere_tools.py script. There is also
+#a vault password file called "passfile" in the same location. This will be deleted at the run of the playbook.
+#Change value of user_path to match your desired location of the scripts and vault file. 
+
+#Run with "ansible-playbook -K --vault-password-file passfile install_tools.yml"
+
+- name: vSphere actions
+  hosts: localhost
+  vars:
+    user_path: /yourpath
+  vars_files:
+    - "{{ user_path }}/vimcreds.yml"
+
+  tasks:
+
+    - name: Check for vSphere creds
+      fail: msg="The variables username and pword are not set in the specified vault file"
+      when: (username is not defined) or (pword is not defined)
+
+    - name: Obtain hosts from /etc/ansible/hosts. Hash out unwanted hosts to prevent assimilation (installation)
+      shell: cat /etc/ansible/hosts | sed '/^\[\|#\|^$/d' > {{ user_path }}/hosts_list
+
+    - name: Mount the iso to the VM with sphere_tools.py
+      script: '"{{ user_path }}/sphere_tools.py" --username "{{ username }}" --password "{{ pword }}" --install {{ user_path }}/hosts_list'
+      
+- name: Host actions
+  hosts: all
+  become: yes
+  become_method: sudo
+  tasks:
+
+    - name: Check CD mount status or mount the CD
+      shell: (mount | grep sr0 &>/dev/null) || ( ( (ls /media | grep "VMware Tools") || mkdir /media/VMware\ Tools) && mount -o loop /dev/sr0 /media/VMware\ Tools)
+
+    - name: Install Tools
+      shell: |
+        tools_tar=$(ls /media/VMware\ Tools | grep tar)
+        cp /media/VMware\ Tools/"${tools_tar}" /tmp
+        cd /tmp
+        tar xzf "${tools_tar}"
+        cd vmware-tools-distrib
+        ./vmware-install.pl -d default
+        cd ..
+        rm -rf "${tools_tar}" vmware-tools-distrib
+        exit 0
