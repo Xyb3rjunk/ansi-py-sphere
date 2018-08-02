@@ -238,7 +238,7 @@ def main():
     #Determine the course of action based off the install flag
     if a.install_flag:
         if installed_vms!='':
-		    print("Ignoring ", installed_vms.values(), " as tools are already installed")
+            print("Ignoring ", installed_vms.values(), " as tools are already installed")
             print("")
         print("Mounting the ISO to the following virtual machines: ", uninstalled_vms.values())
         print("")
